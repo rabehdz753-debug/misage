@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إرسال البيانات الفوري</title>
+    <!-- استدعاء خط وطني مريح للعين وأيقونات FontAwesome -->
+    <link href="https://googleapis.com" rel="stylesheet">
+    <link rel="stylesheet" href="https://cloudflare.com">
+    
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Cairo', sans-serif; }
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .app-card {
+            background: #ffffff;
+            width: 100%;
+            max-width: 480px;
+            padding: 35px 30px;
+            border-radius: 24px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s ease;
+        }
+        .app-card:hover { transform: translateY(-5px); }
+        .header { text-align: center; margin-bottom: 25px; }
+        .header i { font-size: 40px; color: #764ba2; margin-bottom: 10px; }
+        .header h2 { color: #333; font-size: 24px; font-weight: 700; }
+        .header p { color: #666; font-size: 14px; margin-top: 5px; }
+        
+        .form-group { margin-bottom: 20px; position: relative; }
+        .form-group label { display: block; color: #444; font-weight: 600; margin-bottom: 8px; font-size: 14px; }
+        .form-group i { position: absolute; right: 15px; top: 43px; color: #999; }
+        
+        .form-control {
+            width: 100%;
+            padding: 12px 45px 12px 15px;
+            border: 2px solid #e1e1e1;
+            border-radius: 12px;
+            font-size: 15px;
+            color: #333;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+        .form-control:focus { border-color: #764ba2; box-shadow: 0 0 0 4px rgba(118, 75, 162, 0.1); }
+        textarea.form-control { resize: none; }
+        
+        .btn-submit {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.3s ease;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+        .btn-submit:hover { opacity: 0.9; }
+        .btn-submit:disabled { background: #ccc; cursor: not-allowed; }
+
+        /* إشعار النجاح والخطأ المدمج */
+        .status-msg {
+            display: none;
+            margin-top: 20px;
+            padding: 12px;
+            border-radius: 12px;
+            text-align: center;
+            font-size: 14px;
+            font-weight: 600;
+            animation: fadeIn 0.5s ease forwards;
+        }
+        .status-msg.success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .status-msg.error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+<div class="app-card">
+    <div class="header">
+        <i class="fa-solid fa-paper-plane-bounce animate__animated animate__bounce"></i>
+        <h2>مشاركة المعلومات السريعة</h2>
+        <p>أدخل بياناتك لتصل إلى الإدارة فوراً</p>
+    </div>
+
+    <!-- تذكر استبدال معرف Formspree الخاص بك مكان الـ YOUR_FORM_ID -->
+    <form id="my-form" action="https://formspree.io" method="POST">
+        <div class="form-group">
+            <label for="name">الاسم أو اللقب:</label>
+            <i class="fa-regular fa-user"></i>
+            <input type="text" name="name" id="name" class="form-control" placeholder="جون دو" required>
+        </div>
+
+        <div class="form-group">
+            <label for="contact">وسيلة الاتصال (إيميل أو هاتف):</label>
+            <i class="fa-regular fa-envelope"></i>
+            <input type="text" name="contact" id="contact" class="form-control" placeholder="example@mail.com" required>
+        </div>
+
+        <div class="form-group">
+            <label for="message">المعلومات المُراد إرسالها:</label>
+            <i class="fa-regular fa-comment-dots" style="top: 45px;"></i>
+            <textarea name="message" id="message" rows="4" class="form-control" placeholder="اكتب تفاصيلك هنا..." required></textarea>
+        </div>
+
+        <button type="submit" id="submit-btn" class="btn-submit">
+            <span>إرسال البيانات</span>
+            <i class="fa-solid fa-paper-plane"></i>
+        </button>
+
+        <div id="status-box" class="status-msg"></div>
+    </form>
+</div>
+
+<script>
+    const form = document.getElementById("my-form");
+    const submitBtn = document.getElementById("submit-btn");
+    const statusBox = document.getElementById("status-box");
+
+    form.addEventListener("submit", async function(event) {
+        event.preventDefault(); // منع الصفحة من إعادة التحميل الافتراضية
+        
+        // تغيير وضعية الزر أثناء الإرسال
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span>جاري الإرسال...</span> <i class="fa-solid fa-spinner fa-spin"></i>';
+        
+        const data = new FormData(event.target);
+        
+        try {
+            const response = await fetch(form.action, {
+                method: form.method,
+                body: data,
+                headers: { 'Accept': 'application/json' }
+            });
+            
+            if (response.ok) {
+                // في حال النجاح
+                statusBox.className = "status-msg success";
+                statusBox.innerHTML = '<i class="fa-regular fa-circle-check"></i> تم إرسال معلوماتك بنجاح، ووصل التنبيه للمسؤول!';
+                statusBox.style.display = "block";
+                form.reset(); // تفريغ الخانات بعد النجاح
+            } else {
+                // في حال وجود مشكلة من الخادم
+                const errorData = await response.json();
+                throw new Error(errorData.error || "مشكلة في الإرسال");
+            }
+        } catch (error) {
+            // في حال فشل الاتصال أو خطأ آخر
+            statusBox.className = "status-msg error";
+            statusBox.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i> عذراً، حدث خطأ أثناء الإرسال. تأكد من إعدادات الرابط.';
+            statusBox.style.display = "block";
+        } finally {
+            // إعادة الزر لحالته الطبيعية
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<span>إرسال البيانات</span> <i class="fa-solid fa-paper-plane"></i>';
+        }
+    });
+</script>
+
+</body>
+</html>
